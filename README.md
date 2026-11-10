@@ -130,10 +130,14 @@ Do not put the MongoDB URI or JWT secret in `.env.local`; `VITE_` variables are 
 ## Useful URLs and commands
 
 - Frontend: `http://localhost:5173`
+- Customer home: `http://localhost:5173/`
+- Home-state previews: add `?state=loading`, `?state=error`, or `?state=empty` to the customer home URL.
 - Backend health check: `http://localhost:5000/api/health`
 - Backend API routes: `/api/auth/register`, `/api/auth/login`, and `/api/auth/google`
 - Stop either development server with **Ctrl+C** in its terminal.
 - Create a frontend production build from the project root with `npm run build`.
+
+The customer home currently uses clearly labelled illustrative store and price data for the UI preview. Live store approval, inventory, pricing, delivery availability, and offers are not connected to the backend yet.
 
 ## Troubleshooting
 
