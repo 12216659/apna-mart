@@ -150,3 +150,12 @@ The customer home currently uses clearly labelled illustrative store and price d
 ## Environment files and data
 
 Environment files contain local credentials and must not be committed. Keep `backend/.env` and `.env.local` private; use the example files only as templates. Customer records are stored in MongoDB in the `apna_mart` database.
+
+
+## TPO UPDTE THE GIT DAILY
+
+When	What to do
+Before starting work	git pull origin main
+After making changes	git add .
+Save your changes	git commit -m "Describe changes"
+Upload to GitHub	git push origin main
