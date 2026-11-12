@@ -131,13 +131,22 @@ Do not put the MongoDB URI or JWT secret in `.env.local`; `VITE_` variables are 
 
 - Frontend: `http://localhost:5173`
 - Customer home: `http://localhost:5173/`
+- Store discovery preview: `http://localhost:5173/stores`
+- Store discovery state previews: add `?state=loading`, `?state=empty`, `?state=permission-denied`, `?state=location-needed`, `?state=offline`, `?state=closed`, or `?state=details` to `/stores`
+- Individual store shopping preview: open a store with its **View store** button, or use `/stores/sri-lakshmi-general-store`
+- Store page states: add `?state=loading`, `?state=empty`, `?state=closed`, or `?state=outside-radius` to an individual store URL
+- Store cart preview: `http://localhost:5173/cart`
 - Home-state previews: add `?state=loading`, `?state=error`, or `?state=empty` to the customer home URL.
 - Backend health check: `http://localhost:5000/api/health`
 - Backend API routes: `/api/auth/register`, `/api/auth/login`, and `/api/auth/google`
 - Stop either development server with **Ctrl+C** in its terminal.
 - Create a frontend production build from the project root with `npm run build`.
 
-The customer home currently uses clearly labelled illustrative store and price data for the UI preview. Live store approval, inventory, pricing, delivery availability, and offers are not connected to the backend yet.
+The customer home, store discovery, and individual store shopping pages currently use clearly labelled illustrative store, product, inventory, rating, price, distance, and delivery data for the UI preview. Live store approval, customer location, distance calculations, operating status, product inventory, pricing, delivery/pickup availability, and checkout validation are not connected to the backend yet. Do not use preview data as production availability or pricing.
+
+The customer Home, Stores, individual Store, Cart, and Orders pages share one app-level cart and delivery location. Cart and location selections are saved in browser local storage and synchronized between open tabs; this is preview persistence, not a server-backed account cart or address book.
+
+Store Discovery category chips filter stores by the categories represented in each store's preview catalog. Page navigation and category-result changes use brief animations and respect reduced-motion preferences.
 
 ## Troubleshooting
 

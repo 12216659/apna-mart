@@ -988,6 +988,23 @@
   background: #ecf7ed;
 }
 
+.store-visit-button:disabled,
+.store-card-image:disabled,
+.store-arrow:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.store-tags .store-rating {
+  color: #966710;
+  background: #fff7e6;
+}
+
+.store-tags .store-closed {
+  color: #a64c3c;
+  background: #fff0ed;
+}
+
 .inline-empty {
   display: flex;
   min-height: 120px;

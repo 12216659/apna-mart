@@ -1,0 +1,50 @@
+.route-transition {
+  min-height: 100vh;
+  animation: route-fade-in 220ms ease-out both;
+}
+
+.route-transition::before {
+  position: fixed;
+  z-index: 1000;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #159447;
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: route-progress 320ms ease-out both;
+  pointer-events: none;
+}
+
+@keyframes route-fade-in {
+  from {
+    opacity: 0.72;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes route-progress {
+  0% {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  80% {
+    transform: scaleX(0.9);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-transition,
+  .route-transition::before {
+    animation-duration: 1ms;
+  }
+}

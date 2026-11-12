@@ -1,4 +1,8 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAppState } from "../../app/AppState";
+import CustomerBottomNavigation from "./CustomerBottomNavigation";
+import { previewStores } from "./storeData";
 import {
   ArrowDownUp,
   ArrowRight,
@@ -47,49 +51,6 @@ const categories = [
   { name: "Household", icon: "🧹", tint: "mint", count: "Home essentials" },
   { name: "Baby Care", icon: "🧸", tint: "lilac", count: "For little ones" },
   { name: "Stationery", icon: "✏️", tint: "yellow", count: "Work & school" },
-];
-
-const stores = [
-  {
-    name: "Sri Lakshmi General Store",
-    category: "Groceries · Daily essentials",
-    distance: 180,
-    image:
-      "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=660&q=85",
-    initials: "SL",
-    tint: "store-green",
-    tags: ["Delivery", "Pickup"],
-  },
-  {
-    name: "Fresh Basket Mart",
-    category: "Fresh produce · Supermarket",
-    distance: 320,
-    image:
-      "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=660&q=85",
-    initials: "FB",
-    tint: "store-orange",
-    tags: ["Delivery"],
-  },
-  {
-    name: "Sai Kirana & Supermarket",
-    category: "Kirana · Household",
-    distance: 410,
-    image:
-      "https://images.unsplash.com/photo-1601599561213-832382fd07ba?auto=format&fit=crop&w=660&q=85",
-    initials: "SK",
-    tint: "store-blue",
-    tags: ["Pickup"],
-  },
-  {
-    name: "Daily Needs Store",
-    category: "Everyday essentials",
-    distance: 470,
-    image:
-      "https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=660&q=85",
-    initials: "DN",
-    tint: "store-lilac",
-    tags: ["Delivery", "Pickup"],
-  },
 ];
 
 const products = [
@@ -251,6 +212,13 @@ function ErrorState({ onRetry }) {
 }
 
 function StoreCard({ store, onOpen }) {
+  const isOpen = store.isOpen;
+  const tint = {
+    leaf: "store-green",
+    orange: "store-orange",
+    blue: "store-blue",
+    violet: "store-lilac",
+  }[store.accent];
   return (
     <article className="store-card">
       <button
@@ -258,6 +226,7 @@ function StoreCard({ store, onOpen }) {
         type="button"
         aria-label={`View ${store.name}`}
         onClick={() => onOpen(store)}
+        disabled={!isOpen}
       >
         <img src={store.image} alt="" loading="lazy" />
         <span className="store-distance">
@@ -265,7 +234,7 @@ function StoreCard({ store, onOpen }) {
         </span>
       </button>
       <div className="store-card-body">
-        <div className={`store-avatar ${store.tint}`}>{store.initials}</div>
+        <div className={`store-avatar ${tint}`}>{store.icon}</div>
         <div className="store-info">
           <h3>{store.name}</h3>
           <p>{store.category}</p>
@@ -274,6 +243,7 @@ function StoreCard({ store, onOpen }) {
           type="button"
           className="store-arrow"
           aria-label={`Open ${store.name}`}
+          disabled={!isOpen}
           onClick={() => onOpen(store)}
         >
           <ArrowRight size={17} />
@@ -282,16 +252,18 @@ function StoreCard({ store, onOpen }) {
       <div className="store-card-footer">
         <span className="store-nearby"><Navigation size={12} /> {store.distance} m away</span>
         <div className="store-tags">
-          {store.tags.map((tag) => (
+          <span className="service-tag store-rating">★ {store.rating.toFixed(1)} ({store.reviews})</span>
+          {[...(store.delivery ? ["Delivery"] : []), ...(store.pickup ? ["Pickup"] : [])].map((tag) => (
             <span key={tag} className="service-tag">
               {tag === "Delivery" ? <Bike size={11} /> : <Store size={11} />}
               {tag}
             </span>
           ))}
+          {!isOpen && <span className="service-tag store-closed">Closed</span>}
         </div>
       </div>
-      <button className="store-visit-button" type="button" onClick={() => onOpen(store)}>
-        View store
+      <button className="store-visit-button" type="button" disabled={!isOpen} onClick={() => onOpen(store)}>
+        {isOpen ? "View store" : "Store is closed"}
       </button>
     </article>
   );
@@ -357,47 +329,16 @@ function ProductCard({ product, isFavourite, onFavourite, onAdd, onOpen, quantit
   );
 }
 
-function BottomNavigation({ active, cartCount, onSelect }) {
-  const items = [
-    { id: "Home", icon: House },
-    { id: "Stores", icon: Store },
-    { id: "Cart", icon: ShoppingCart },
-    { id: "Orders", icon: PackageCheck },
-    { id: "Profile", icon: UserRound },
-  ];
-  return (
-    <nav className="bottom-navigation" aria-label="Main navigation">
-      {items.map(({ id, icon: Icon }) => (
-        <button
-          key={id}
-          type="button"
-          className={`nav-item ${active === id ? "active" : ""}`}
-          onClick={() => onSelect(id)}
-        >
-          <span className="nav-icon-wrap">
-            <Icon size={20} strokeWidth={active === id ? 2.4 : 1.9} />
-            {id === "Cart" && cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
-          </span>
-          <span>{id}</span>
-        </button>
-      ))}
-    </nav>
-  );
-}
-
 function Home() {
-  const [locationIndex, setLocationIndex] = useState(0);
-  const [customLocation, setCustomLocation] = useState(null);
+  const navigate = useNavigate();
+  const { cart, setCart, location: currentLocation, setLocation } = useAppState();
   const [addressInput, setAddressInput] = useState("");
   const [locationOpen, setLocationOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [bannerIndex, setBannerIndex] = useState(0);
   const [favourites, setFavourites] = useState([]);
-  const [cart, setCart] = useState([]);
-  const [activeNav, setActiveNav] = useState("Home");
   const [activeCategory, setActiveCategory] = useState("");
-  const [selectedStore, setSelectedStore] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [activePanel, setActivePanel] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -409,19 +350,18 @@ function Home() {
     () => new URLSearchParams(window.location.search).get("state") || "ready",
   );
 
-  const currentLocation = customLocation || locations[locationIndex];
-  const previewLocationAvailable = !customLocation && locationIndex === 0;
-  const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
-  const cartStore = cart[0]?.store;
+  const previewLocationAvailable =
+    currentLocation.name === locations[0].name &&
+    currentLocation.address === locations[0].address;
+  const cartStore = cart[0]?.storeName || cart[0]?.store;
   const filteredStores = useMemo(
     () =>
-      stores
-        .filter(() => previewLocationAvailable)
+      previewStores
         .filter((store) => store.distance <= 500)
-        .filter((store) => !filterDelivery || store.tags.includes("Delivery"))
-        .filter((store) => !filterPickup || store.tags.includes("Pickup"))
+        .filter((store) => !filterDelivery || store.delivery)
+        .filter((store) => !filterPickup || store.pickup)
         .sort((a, b) => (filterDistance ? a.distance - b.distance : 0)),
-    [filterDelivery, filterDistance, filterPickup, previewLocationAvailable],
+    [filterDelivery, filterDistance, filterPickup],
   );
   const filteredProducts = useMemo(
     () =>
@@ -442,24 +382,42 @@ function Home() {
   const searchResults = searchValue ? filteredProducts : [];
 
   const changeCart = (product, amount) => {
-    const existingStore = cart[0]?.store;
+    const existingStore = cart[0]?.storeName || cart[0]?.store;
+    const storeId = product.storeId || previewStores.find((store) => store.name === product.store)?.id || `home:${product.store}`;
     if (amount > 0 && existingStore && existingStore !== product.store) {
       const shouldReplace = window.confirm(
         `Your cart has items from ${existingStore}. Replace it with items from ${product.store}?`,
       );
       if (!shouldReplace) return;
-      setCart([{ ...product, quantity: amount }]);
+      setCart([{
+        ...product,
+        id: product.id || product.name,
+        storeName: product.store,
+        storeId,
+        store: product.store,
+        quantity: amount,
+      }]);
       return;
     }
 
     setCart((current) => {
-      const currentItem = current.find((item) => item.name === product.name);
+      const currentItem = current.find((item) => item.name === product.name && (item.storeName || item.store) === product.store);
       if (!currentItem && amount < 0) return current;
-      if (!currentItem) return [...current, { ...product, quantity: amount }];
+      if (!currentItem) {
+        return [...current, {
+          ...product,
+          id: product.id || product.name,
+          storeName: product.store,
+          storeId,
+          store: product.store,
+          stock: product.stock || 99,
+          quantity: Math.min(product.stock || 99, amount),
+        }];
+      }
       return current
         .map((item) =>
-          item.name === product.name
-            ? { ...item, quantity: item.quantity + amount }
+          item.name === product.name && (item.storeName || item.store) === product.store
+            ? { ...item, quantity: Math.min(product.stock || item.stock || 99, item.quantity + amount) }
             : item,
         )
         .filter((item) => item.quantity > 0);
@@ -485,23 +443,13 @@ function Home() {
     setSearchValue("");
   };
 
-  const handleNavigation = (tab) => {
-    setActiveNav(tab);
-    if (tab === "Home") {
-      setActivePanel("");
-    } else {
-      setActivePanel(tab.toLowerCase());
-    }
-  };
-
   const chooseLocation = (index) => {
     if (index === 2) {
       setLocationOpen(false);
       setActivePanel("location-add");
       return;
     }
-    setCustomLocation(null);
-    setLocationIndex(index);
+    setLocation(locations[index]);
     setLocationOpen(false);
     setActiveCategory("");
     setPreviewState("ready");
@@ -564,13 +512,13 @@ function Home() {
               {locations.map((location, index) => (
                 <button
                   type="button"
-                  className={`saved-location ${index === locationIndex ? "selected" : ""}`}
+                  className={`saved-location ${currentLocation.name === location.name && currentLocation.address === location.address ? "selected" : ""}`}
                   key={location.name}
                   onClick={() => chooseLocation(index)}
                 >
                   <span className="saved-location-icon">{index === 0 ? <House size={16} /> : index === 1 ? <Store size={16} /> : <Plus size={16} />}</span>
                   <span><strong>{location.name}</strong><small>{location.address || location.detail}</small></span>
-                  {index === locationIndex && <Check size={16} />}
+                  {currentLocation.name === location.name && currentLocation.address === location.address && <Check size={16} />}
                 </button>
               ))}
               <button
@@ -583,7 +531,7 @@ function Home() {
                   }
                   navigator.geolocation.getCurrentPosition(
                     () => {
-                      setCustomLocation({
+                      setLocation({
                         name: "Current location",
                         address: "GPS location",
                         detail: "Using your current location",
@@ -719,7 +667,7 @@ function Home() {
             title="Stores near you"
             subtitle="Explore shops around your location."
             action="View all"
-            onAction={() => setActivePanel("stores")}
+            onAction={() => navigate("/stores")}
           />
           <div className="store-filter-row">
             <button type="button" className={`filter-button ${filtersOpen ? "filter-active" : ""}`} onClick={() => setFiltersOpen((open) => !open)}>
@@ -753,10 +701,10 @@ function Home() {
             <EmptyState icon={Store} title="No stores nearby yet" description="There aren't any partner stores in this area just yet." />
           ) : filteredStores.length ? (
             <div className="store-scroller">
-              {filteredStores.map((store) => <StoreCard key={store.name} store={store} onOpen={setSelectedStore} />)}
+              {filteredStores.map((store) => <StoreCard key={store.id} store={store} onOpen={(selected) => navigate(`/stores/${selected.id}`)} />)}
             </div>
           ) : (
-            <EmptyState icon={Store} title={previewLocationAvailable ? "No stores match these filters" : "No preview stores for this address"} description={previewLocationAvailable ? "Try changing a filter to see more nearby shops." : "Live nearby stores will appear here when connected."} />
+            <EmptyState icon={Store} title="No stores match these filters" description="Try changing a filter to see more nearby shops." />
           )}
         </section>
 
@@ -844,34 +792,22 @@ function Home() {
         <span>Apni Dukaan, Ab Aapke Paas.</span>
       </footer>
 
-      <BottomNavigation active={activeNav} cartCount={cartCount} onSelect={handleNavigation} />
+      <CustomerBottomNavigation />
 
-      {(selectedStore || selectedProduct || activePanel) && (
+      {(selectedProduct || activePanel) && (
         <div className="modal-backdrop" onMouseDown={(event) => {
           if (event.target === event.currentTarget) {
-            setSelectedStore(null);
             setSelectedProduct(null);
             setActivePanel("");
           }
         }}>
-          <section className="detail-sheet" role="dialog" aria-modal="true" aria-label={selectedStore?.name || selectedProduct?.name || activePanel}>
+          <section className="detail-sheet" role="dialog" aria-modal="true" aria-label={selectedProduct?.name || activePanel}>
             <button
               type="button"
               className="sheet-close"
               aria-label="Close"
-              onClick={() => { setSelectedStore(null); setSelectedProduct(null); setActivePanel(""); }}
+              onClick={() => { setSelectedProduct(null); setActivePanel(""); }}
             ><X size={18} /></button>
-            {selectedStore && (
-              <div className="sheet-content">
-                <img className="sheet-cover" src={selectedStore.image} alt="" />
-                <span className="sheet-kicker">LOCAL STORE · {selectedStore.distance} M AWAY</span>
-                <h2>{selectedStore.name}</h2>
-                <p>{selectedStore.category}</p>
-                <div className="sheet-tags">{selectedStore.tags.map((tag) => <span key={tag}><Check size={13} /> {tag} available</span>)}</div>
-                <div className="verified-note"><MapPin size={15} /><span>Nearby partner store<br /><small>Store-specific prices and availability are confirmed at checkout.</small></span></div>
-                <button className="sheet-primary" type="button" onClick={() => { setSelectedStore(null); setActivePanel("products"); }}>Browse store <ArrowRight size={16} /></button>
-              </div>
-            )}
             {selectedProduct && (
               <div className="sheet-content">
                 <img className="sheet-product-image" src={selectedProduct.image} alt={selectedProduct.name} />
@@ -883,7 +819,7 @@ function Home() {
                 <button className="sheet-primary" type="button" onClick={() => { changeCart(selectedProduct, 1); setSelectedProduct(null); }}>Add to cart <Plus size={16} /></button>
               </div>
             )}
-            {!selectedStore && !selectedProduct && (
+            {!selectedProduct && (
               <div className="panel-content">
                 <span className="panel-icon">
                   {activePanel === "cart" ? <ShoppingCart size={23} /> : activePanel === "profile" ? <UserRound size={23} /> : activePanel === "notifications" ? <Bell size={23} /> : activePanel === "location-error" || activePanel === "location-add" ? <MapPin size={23} /> : activePanel === "orders" ? <PackageCheck size={23} /> : <Store size={23} />}
@@ -906,7 +842,7 @@ function Home() {
                       disabled={!addressInput.trim()}
                       onClick={() => {
                         const address = addressInput.trim();
-                        setCustomLocation({ name: "Other", address, detail: "Saved address" });
+                        setLocation({ name: "Other", address, detail: "Saved address" });
                         setAddressInput("");
                         setActivePanel("");
                         setActiveCategory("");
@@ -938,9 +874,8 @@ function Home() {
                 {activePanel === "cart" && cart.length === 0 && <div className="empty-cart-art"><ShoppingBag size={36} /><span>Good things start here</span></div>}
                 {activePanel === "profile" && <button className="sheet-primary" type="button" onClick={() => { window.location.href = "/login"; }}>Sign in or create account <ArrowRight size={16} /></button>}
                 {activePanel === "location-error" && <button className="sheet-primary" type="button" onClick={() => { setActivePanel(""); setLocationOpen(true); }}>Choose saved address <MapPin size={16} /></button>}
-                {activePanel === "stores" && <div className="panel-store-list">{filteredStores.slice(0, 3).map((store) => <button key={store.name} type="button" onClick={() => { setActivePanel(""); setSelectedStore(store); }}><span className={`store-avatar ${store.tint}`}>{store.initials}</span><span><strong>{store.name}</strong><small>{store.distance} m away · {store.tags.join(" · ")}</small></span><ArrowRight size={15} /></button>)}</div>}
                 {activePanel === "products" && <div className="panel-store-list">{products.slice(0, 4).map((product) => <button key={product.name} type="button" onClick={() => { setActivePanel(""); openProduct(product); }}><img src={product.image} alt="" /><span><strong>{product.name}</strong><small>{product.brand} · ₹{product.price} preview price</small></span><ArrowRight size={15} /></button>)}</div>}
-                {activePanel !== "cart" && activePanel !== "products" && activePanel !== "stores" && activePanel !== "profile" && activePanel !== "location-error" && activePanel !== "location-add" && (
+                {activePanel !== "cart" && activePanel !== "products" && activePanel !== "profile" && activePanel !== "location-error" && activePanel !== "location-add" && (
                   <button className="sheet-primary" type="button" onClick={() => setActivePanel("")}>Continue shopping <ArrowRight size={16} /></button>
                 )}
               </div>
