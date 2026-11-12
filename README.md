@@ -1,161 +1,57 @@
 # Apna Mart
 
-Apna Mart is a React + Vite frontend with an Express API and MongoDB database.
+Apna Mart is a React Native CLI mobile app for Android and iOS, backed by an Express API and MongoDB.
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) 20.19+ or 22.12+ (includes npm)
-- [Visual Studio Code](https://code.visualstudio.com/)
-- A MongoDB database, such as a MongoDB Atlas cluster
-- Git, if you are cloning the project
+- Node.js 22.11 or newer and npm
+- Android Studio, Android SDK, JDK 17, and an Android emulator or device for Android development
+- macOS and Xcode for iOS development
+- A MongoDB database for account registration and sign-in
 
-Check that Node.js and npm are installed from the VS Code terminal:
+## Set up the backend
 
-```powershell
-node --version
-npm --version
-```
-
-## Step-by-step setup in VS Code (Windows)
-
-### Step 1: Open the project
-
-Open VS Code and choose **File > Open Folder...**. Select the `apna-mart` folder containing this README, the frontend `package.json`, and the `backend` folder.
-
-If you need to clone the project first, open PowerShell and run the following, replacing `<repository-url>` with your Git URL:
-
-```powershell
-git clone <repository-url>
-cd apna-mart
-code .
-```
-
-In VS Code, open **Terminal > New Terminal**. The project root is the folder containing the frontend `package.json`.
-
-### Backend setup
-
-#### Step 2: Set up MongoDB
-
-Create a MongoDB Atlas cluster and database user. In Atlas, allow your computer's IP address under **Network Access**, then copy the cluster connection string.
-
-#### Step 3: Create backend environment settings
-
-In a terminal at the project root, create `backend/.env` if it does not already exist:
-
-```powershell
-if (-not (Test-Path backend\.env)) { Copy-Item backend\.env.example backend\.env }
-```
-
-In VS Code, open `backend/.env` and set the following values:
+Create `backend/.env` with your MongoDB connection string and a private JWT secret:
 
 ```dotenv
 MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>/<database>
 PORT=5000
-CLIENT_URL=http://localhost:5173
 JWT_SECRET=<a-random-secret-at-least-32-characters-long>
 ```
 
-Use the MongoDB connection string from Atlas and replace the placeholders with your database details. URL-encode reserved characters in the database password. Generate a random JWT secret by running this in PowerShell:
+Generate a secret in PowerShell with:
 
 ```powershell
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-Paste the printed value as `JWT_SECRET`. Do not use the placeholder or share/commit the secret.
-
-#### Step 4: Install backend packages
-
-Open a VS Code terminal, then change into the backend folder and install its packages:
+Do not commit `.env` files or share the database credentials.
 
 ```powershell
 cd backend
 npm install
-```
-
-#### Step 5: Start the backend server
-
-In that same terminal, run:
-
-```powershell
 npm run dev
 ```
 
-Keep the terminal running. The backend is ready when it reports that MongoDB is connected and the API is listening on port 5000.
+Leave the backend running while using the app.
 
-### Frontend setup
+## Run the mobile app
 
-#### Step 6: Open a second terminal
-
-In VS Code, choose **Terminal > New Terminal**. The terminal must be in the project root (the folder containing the frontend `package.json`), not in `backend`. If it opened in `backend`, run:
-
-```powershell
-cd ..
-```
-
-#### Step 7: Install frontend packages
-
-In the second terminal, install the frontend packages:
+From the project root, install the app dependencies and start Metro:
 
 ```powershell
 npm install
+npm start
 ```
 
-#### Step 8: Start the frontend
-
-In the same second terminal, run:
+In a second project-root terminal, start an Android emulator or connect an Android device, then run:
 
 ```powershell
-npm run dev
+npm run android
 ```
 
-Keep this terminal running and open the URL Vite prints, usually `http://localhost:5173`. The frontend forwards `/api` requests to the backend at `http://localhost:5000`. Both servers must remain running while you use the app.
+On macOS, run `bundle install` from the project root, then run `bundle exec pod install` from the `ios` folder. Start the app from the project root with `npm run ios`.
 
-### Optional: enable Google sign-in
+The API URL is set in `src/config.ts`. The defaults use `10.0.2.2` for the Android emulator and `localhost` for the iOS simulator. For a physical phone, replace the URL with your development computer's LAN IP address and make sure the phone can reach port 5000.
 
-Google sign-in is optional; the app can run without it.
-
-1. Create a Google OAuth **Web application** client ID in Google Cloud and add `http://localhost:5173` to **Authorized JavaScript origins**.
-2. Set `GOOGLE_CLIENT_ID` in `backend/.env` to that client ID.
-3. In a terminal at the project root, create `.env.local` if it does not already exist:
-
-   ```powershell
-   if (-not (Test-Path .env.local)) { Copy-Item .env.example .env.local }
-   ```
-
-4. Open `.env.local` and set `VITE_GOOGLE_CLIENT_ID` to the same client ID.
-5. Stop and restart both development servers to load the new settings.
-
-Do not put the MongoDB URI or JWT secret in `.env.local`; `VITE_` variables are exposed to the browser.
-
-## Useful URLs and commands
-
-- Frontend: `http://localhost:5173`
-- Customer home: `http://localhost:5173/`
-- Home-state previews: add `?state=loading`, `?state=error`, or `?state=empty` to the customer home URL.
-- Backend health check: `http://localhost:5000/api/health`
-- Backend API routes: `/api/auth/register`, `/api/auth/login`, and `/api/auth/google`
-- Stop either development server with **Ctrl+C** in its terminal.
-- Create a frontend production build from the project root with `npm run build`.
-
-The customer home currently uses clearly labelled illustrative store and price data for the UI preview. Live store approval, inventory, pricing, delivery availability, and offers are not connected to the backend yet.
-
-## Troubleshooting
-
-- **MongoDB connection error:** Check `MONGODB_URI`, the database user's credentials, and the Atlas network access list.
-- **`MONGODB_URI` or `JWT_SECRET` is missing:** Confirm `backend/.env` exists and has the required values, then restart the backend.
-- **Frontend cannot reach the API:** Confirm the backend is running on port 5000 and the frontend is running on port 5173.
-- **Google sign-in is unavailable:** Confirm both Google client ID variables match, the authorized JavaScript origin is `http://localhost:5173`, and restart both development servers.
-- If Node.js cannot resolve MongoDB SRV DNS records, set `MONGODB_DNS_SERVERS` in `backend/.env` to a reachable DNS server IP.
-
-## Environment files and data
-
-Environment files contain local credentials and must not be committed. Keep `backend/.env` and `.env.local` private; use the example files only as templates. Customer records are stored in MongoDB in the `apna_mart` database.
-
-
-## TPO UPDTE THE GIT DAILY
-
-When	What to do
-Before starting work	git pull origin main
-After making changes	git add .
-Save your changes	git commit -m "Describe changes"
-Upload to GitHub	git push origin main
+The app's sample stores, products, and prices are illustrative preview data; inventory, checkout, and orders are not connected to the backend. Username/password registration and sign-in use the backend API. Native Google sign-in is not configured.
