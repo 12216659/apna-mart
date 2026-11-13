@@ -1,4 +1,15 @@
 {
-  "name": "ApnaMart",
-  "displayName": "Apna Mart"
+  "expo": {
+    "name": "Apna Mart",
+    "slug": "apna-mart",
+    "version": "1.0.0",
+    "scheme": "apnamart",
+    "orientation": "portrait",
+    "ios": {
+      "bundleIdentifier": "com.apnamart"
+    },
+    "android": {
+      "package": "com.apnamart"
+    }
+  }
 }

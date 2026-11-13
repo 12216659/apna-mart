@@ -12,6 +12,8 @@ dist
 dist-ssr
 build
 .gradle
+android/.kotlin/
+android/app/.cxx/
 ios/Pods
 ios/build
 ios/DerivedData
@@ -31,3 +33,8 @@ ios/DerivedData
 *.njsproj
 *.sln
 *.sw?
+
+# Expo
+.expo
+dist/
+web-build/
