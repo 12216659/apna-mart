@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import * as Location from 'expo-location';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -32,42 +33,113 @@ const locations = [
   },
 ];
 const categories = [
+  { name: 'All', icon: '✨' },
+  { name: 'Grocery', icon: '🛒' },
   { name: 'Fruits & Vegetables', icon: '🥑' },
-  { name: 'Groceries', icon: '🌾' },
   { name: 'Dairy & Eggs', icon: '🥛' },
-  { name: 'Snacks & Biscuits', icon: '🍪' },
-  { name: 'Beverages', icon: '🧃' },
   { name: 'Bakery', icon: '🥐' },
-  { name: 'Personal Care', icon: '🧴' },
+  { name: 'Snacks', icon: '🍪' },
+  { name: 'Beverages', icon: '🧃' },
   { name: 'Household', icon: '🧹' },
+  { name: 'Personal Care', icon: '🧴' },
+  { name: 'Stationery', icon: '✏️' },
 ];
-const stores = [
+const filterChips = ['All Stores', 'Open Now', 'Top Rated', 'Fast Delivery'];
+const fallbackStores = [
   {
+    id: 'store-1',
     name: 'Sri Lakshmi General Store',
-    category: 'Groceries · Daily essentials',
+    category: 'Grocery',
     distance: 180,
     image:
       'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=660&q=85',
-    initials: 'SL',
+    logo: 'SL',
+    rating: 4.8,
+    reviews: 128,
+    isOpen: true,
+    deliveryTime: '20-30 min',
+    deliveryAvailable: true,
+    pickupAvailable: true,
+    productCount: 240,
+    lat: 17.4478,
+    lon: 78.3897,
     tags: ['Delivery', 'Pickup'],
   },
   {
+    id: 'store-2',
     name: 'Fresh Basket Mart',
-    category: 'Fresh produce · Supermarket',
+    category: 'Fruits & Vegetables',
     distance: 320,
     image:
       'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=660&q=85',
-    initials: 'FB',
+    logo: 'FB',
+    rating: 4.6,
+    reviews: 96,
+    isOpen: true,
+    deliveryTime: '25-35 min',
+    deliveryAvailable: true,
+    pickupAvailable: false,
+    productCount: 196,
+    lat: 17.4457,
+    lon: 78.3927,
     tags: ['Delivery'],
   },
   {
+    id: 'store-3',
     name: 'Sai Kirana & Supermarket',
-    category: 'Kirana · Household',
+    category: 'Household',
     distance: 410,
     image:
       'https://images.unsplash.com/photo-1601599561213-832382fd07ba?auto=format&fit=crop&w=660&q=85',
-    initials: 'SK',
+    logo: 'SK',
+    rating: 4.4,
+    reviews: 74,
+    isOpen: false,
+    deliveryTime: '35-45 min',
+    deliveryAvailable: false,
+    pickupAvailable: true,
+    productCount: 142,
+    lat: 17.4514,
+    lon: 78.3862,
     tags: ['Pickup'],
+  },
+  {
+    id: 'store-4',
+    name: 'Green Valley Dairy',
+    category: 'Dairy & Eggs',
+    distance: 270,
+    image:
+      'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=660&q=85',
+    logo: 'GV',
+    rating: 4.9,
+    reviews: 215,
+    isOpen: true,
+    deliveryTime: '15-25 min',
+    deliveryAvailable: true,
+    pickupAvailable: true,
+    productCount: 188,
+    lat: 17.4436,
+    lon: 78.3904,
+    tags: ['Delivery', 'Pickup'],
+  },
+  {
+    id: 'store-5',
+    name: 'The Daily Basket',
+    category: 'Bakery',
+    distance: 460,
+    image:
+      'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=660&q=85',
+    logo: 'DB',
+    rating: 4.7,
+    reviews: 152,
+    isOpen: true,
+    deliveryTime: '18-28 min',
+    deliveryAvailable: true,
+    pickupAvailable: true,
+    productCount: 134,
+    lat: 17.4492,
+    lon: 78.3951,
+    tags: ['Delivery', 'Pickup'],
   },
 ];
 const products = [
@@ -257,6 +329,50 @@ function StoreCard({ store, onPress }) {
         </View>
       </View>
     </Pressable>
+  );
+}
+function StoreSearchBar({ value, onSearchChange }) {
+  const [inputValue, setInputValue] = useState(value);
+
+  useEffect(() => {
+    if (!value) {
+      setInputValue('');
+    }
+  }, [value]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => onSearchChange(inputValue), 250);
+    return () => clearTimeout(timeout);
+  }, [inputValue, onSearchChange]);
+
+  return (
+    <View style={styles.storeSearchBar}>
+      <Text style={styles.storeSearchIcon}>⌕</Text>
+      <TextInput
+        autoCapitalize="none"
+        autoCorrect={false}
+        onChangeText={setInputValue}
+        onSubmitEditing={() => onSearchChange(inputValue)}
+        placeholder="Search stores or products..."
+        placeholderTextColor={COLORS.muted}
+        returnKeyType="search"
+        spellCheck={false}
+        style={styles.storeSearchInput}
+        value={inputValue}
+      />
+      <Pressable
+        accessibilityLabel="Clear store search"
+        accessibilityRole="button"
+        disabled={!inputValue}
+        onPress={() => setInputValue('')}
+        style={[
+          styles.storeSearchClear,
+          !inputValue && styles.storeSearchClearDisabled,
+        ]}
+      >
+        <Text style={styles.storeSearchClearText}>×</Text>
+      </Pressable>
+    </View>
   );
 }
 function LoginScreen({ onBack, onSignedIn }) {
@@ -461,6 +577,14 @@ function AppContent() {
   const [session, setSession] = useState(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [sessionError, setSessionError] = useState('');
+  const [stores, setStores] = useState(fallbackStores);
+  const [storeSearchLoading, setStoreSearchLoading] = useState(false);
+  const [activeStoreFilter, setActiveStoreFilter] = useState('All Stores');
+  const [activeStoreCategory, setActiveStoreCategory] = useState('All');
+  const [storeSearchQuery, setStoreSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState('list');
+  const androidMapsApiKeyConfigured =
+    Constants.expoConfig?.extra?.googleMapsAndroidApiKeyConfigured === true;
   useEffect(() => {
     const restoreSession = async () => {
       try {
@@ -476,6 +600,32 @@ function AppContent() {
     };
     restoreSession();
   }, []);
+  const loadNearbyStores = useCallback(async () => {
+    const currentLat = currentCoordinates?.latitude ?? 17.4474;
+    const currentLng = currentCoordinates?.longitude ?? 78.3892;
+    setStoreSearchLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/stores?latitude=${currentLat}&longitude=${currentLng}&within=500&limit=20`,
+      );
+      if (!response.ok) {
+        throw new Error('Unable to load nearby stores');
+      }
+      const payload = await response.json();
+      if (Array.isArray(payload.stores) && payload.stores.length > 0) {
+        setStores(payload.stores);
+        return;
+      }
+    } catch {
+      // Fallback to local sample data when the API is unavailable.
+    } finally {
+      setStoreSearchLoading(false);
+    }
+    setStores(fallbackStores);
+  }, [currentCoordinates]);
+  useEffect(() => {
+    loadNearbyStores();
+  }, [loadNearbyStores]);
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
   const subtotal = cart.reduce(
     (total, item) => total + item.price * item.quantity,
@@ -529,6 +679,33 @@ function AppContent() {
       return matchesCategory && matchesSearch;
     });
   }, [activeCategory, searchValue]);
+  const filteredStores = useMemo(() => {
+    const query = storeSearchQuery.trim().toLowerCase();
+    const matchesSearch = store => {
+      if (!query) return true;
+      const tags = Array.isArray(store.tags) ? store.tags.join(' ') : '';
+      return `${store.name} ${store.category} ${tags}`
+        .toLowerCase()
+        .includes(query);
+    };
+    const matchesCategory = store =>
+      activeStoreCategory === 'All' || store.category === activeStoreCategory;
+    const matchesFilter = store => {
+      switch (activeStoreFilter) {
+        case 'Open Now':
+          return store.isOpen;
+        case 'Top Rated':
+          return store.rating >= 4.6;
+        case 'Fast Delivery':
+          return Number.parseInt(store.deliveryTime, 10) <= 25;
+        default:
+          return true;
+      }
+    };
+    return [...stores]
+      .filter(store => matchesSearch(store) && matchesCategory(store) && matchesFilter(store))
+      .sort((a, b) => a.distance - b.distance);
+  }, [activeStoreCategory, activeStoreFilter, storeSearchQuery, stores]);
   const changeCart = (product, amount) => {
     const existingStore = cart[0]?.store;
     if (amount > 0 && existingStore && existingStore !== product.store) {
@@ -738,43 +915,275 @@ function AppContent() {
     </ScrollView>
   );
   const renderStores = () => (
-    <ScrollView contentContainerStyle={styles.pageContent}>
-      <SectionTitle
-        title="Neighbourhood stores"
-        subtitle="Trusted local shops around you."
+    <ScrollView
+      contentContainerStyle={styles.pageContent}
+      keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <Pressable
+        onPress={() => setLocationsVisible(true)}
+        style={styles.locationCard}
+      >
+        <Text style={styles.locationPin}>⌖</Text>
+        <View style={styles.locationCopy}>
+          <Text style={styles.locationEyebrow}>DELIVERING TO ▾</Text>
+          <Text numberOfLines={1} style={styles.locationAddress}>
+            {customLocation === 'Current location'
+              ? 'Current location'
+              : customLocation
+                ? 'Other'
+                : locations[locationIndex].name}{' '}
+            · {selectedLocation}
+          </Text>
+          <Text style={styles.locationDetail}>
+            {customLocation === 'Current location'
+              ? 'Using device GPS'
+              : customLocation
+                ? 'Saved address'
+                : locations[locationIndex].detail}
+          </Text>
+        </View>
+        <Text style={styles.locationChevron}>⌄</Text>
+      </Pressable>
+
+      <StoreSearchBar
+        onSearchChange={setStoreSearchQuery}
+        value={storeSearchQuery}
       />
-      <View style={styles.mapContainer}>
-        <MapView
-          onRegionChangeComplete={setMapRegion}
-          region={mapRegion}
-          showsMyLocationButton={Boolean(currentCoordinates)}
-          showsUserLocation={Boolean(currentCoordinates)}
-          style={styles.map}
-        >
-          {currentCoordinates ? (
-            <Marker
-              coordinate={currentCoordinates}
-              title="Your current location"
-            />
-          ) : null}
-        </MapView>
+
+      <View style={styles.storeDiscoveryHeader}>
+        <Text style={styles.storeDiscoveryTitle}>Stores Near You</Text>
+        <Text style={styles.storeDiscoverySubtitle}>
+          Discover trusted stores around your location.
+        </Text>
+        <Text style={styles.storeDiscoveryMeta}>
+          Showing {filteredStores.length} stores within 500 metres
+        </Text>
       </View>
-      <ActionButton
-        disabled={locationLoading}
-        onPress={locateMe}
-        title={
-          locationLoading
-            ? 'Finding your location...'
-            : 'Use my current location'
-        }
-      />
+
+      {storeSearchLoading ? (
+        <ActivityIndicator color={COLORS.green} style={styles.storeLoading} />
+      ) : null}
+
+      <ScrollView
+        horizontal
+        contentContainerStyle={styles.filterRow}
+        showsHorizontalScrollIndicator={false}
+      >
+        {filterChips.map(filter => {
+          const selected = filter === activeStoreFilter;
+          return (
+            <Pressable
+              key={filter}
+              onPress={() => setActiveStoreFilter(filter)}
+              style={[
+                styles.filterChip,
+                selected && styles.filterChipActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  selected && styles.filterChipTextActive,
+                ]}
+              >
+                {filter}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <ScrollView
+        horizontal
+        contentContainerStyle={styles.categoryRow}
+        showsHorizontalScrollIndicator={false}
+      >
+        {categories.map(category => {
+          const selected = activeStoreCategory === category.name;
+          return (
+            <Pressable
+              key={category.name}
+              onPress={() => setActiveStoreCategory(category.name)}
+              style={[
+                styles.categoryItem,
+                selected && styles.categorySelected,
+              ]}
+            >
+              <Text style={styles.categoryIcon}>{category.icon}</Text>
+              <Text
+                style={[
+                  styles.categoryName,
+                  selected && styles.categoryNameSelected,
+                ]}
+              >
+                {category.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <View style={styles.viewToggleRow}>
+        <View style={styles.viewToggleWrap}>
+          {['list', 'map'].map(option => {
+            const selected = option === viewMode;
+            return (
+              <Pressable
+                key={option}
+                onPress={() => setViewMode(option)}
+                style={[
+                  styles.viewToggleButton,
+                  selected && styles.viewToggleButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.viewToggleText,
+                    selected && styles.viewToggleTextActive,
+                  ]}
+                >
+                  {option === 'list' ? 'List View' : 'Map View'}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      {viewMode === 'map' ? (
+        <View style={styles.mapContainer}>
+          {Platform.OS === 'android' && !androidMapsApiKeyConfigured ? (
+            <View style={styles.mapUnavailable}>
+              <Text style={styles.mapUnavailableText}>
+                Add GOOGLE_MAPS_ANDROID_API_KEY to .env to enable the map.
+              </Text>
+            </View>
+          ) : (
+            <MapView
+              initialRegion={mapRegion}
+              onRegionChangeComplete={setMapRegion}
+              region={mapRegion}
+              showsMyLocationButton={Boolean(currentCoordinates)}
+              showsUserLocation={Boolean(currentCoordinates)}
+              style={styles.map}
+            >
+              {currentCoordinates ? (
+                <Marker
+                  coordinate={currentCoordinates}
+                  title="Your current location"
+                />
+              ) : null}
+              {filteredStores.map(store => (
+                <Marker
+                  coordinate={{ latitude: store.lat, longitude: store.lon }}
+                  key={store.id}
+                  onPress={() => setSelectedStore(store)}
+                  pinColor={store.isOpen ? '#159447' : '#8c9792'}
+                  title={store.name}
+                />
+              ))}
+            </MapView>
+          )}
+        </View>
+      ) : null}
+
+      <View style={styles.storeActionsRow}>
+        <ActionButton
+          disabled={locationLoading}
+          onPress={locateMe}
+          title={
+            locationLoading
+              ? 'Finding your location...'
+              : 'Use my current location'
+          }
+        />
+      </View>
+
       {locationError ? (
         <Text style={styles.errorText}>{locationError}</Text>
       ) : null}
-      <Text style={styles.mutedText}>
-        Store pins will appear when real store coordinates are added.
-      </Text>
-      {stores.map(renderStore)}
+
+      {viewMode === 'list' ? (
+        <View style={styles.storeList}>
+          {filteredStores.length ? (
+            filteredStores.map(store => (
+              <Pressable
+                key={store.id}
+                onPress={() => setSelectedStore(store)}
+                style={styles.discoveryStoreCard}
+              >
+                <Image source={{ uri: store.image }} style={styles.discoveryStoreImage} />
+                <View style={styles.discoveryStoreBody}>
+                  <View style={styles.discoveryStoreHeaderRow}>
+                    <View style={styles.discoveryStoreBadge}>
+                      <Text style={styles.discoveryStoreBadgeText}>{store.logo}</Text>
+                    </View>
+                    <View style={styles.discoveryStoreInfo}>
+                      <Text style={styles.discoveryStoreName}>{store.name}</Text>
+                      <Text style={styles.discoveryStoreCategory}>{store.category}</Text>
+                      <Text style={styles.discoveryStoreMetaRow}>
+                        {store.distance} m away · {store.rating.toFixed(1)} ★
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.discoveryStorePillRow}>
+                    <Text
+                      style={[
+                        styles.discoveryStorePill,
+                        store.isOpen && styles.discoveryStorePillActive,
+                      ]}
+                    >
+                      {store.isOpen ? 'Open Now' : 'Closed'}
+                    </Text>
+                    <Text style={styles.discoveryStorePill}>Delivery: {store.deliveryTime}</Text>
+                  </View>
+                  <Text style={styles.discoveryStoreDetail}>
+                    {store.deliveryAvailable ? 'Delivery available' : 'Delivery unavailable'} ·{' '}
+                    {store.pickupAvailable ? 'Pickup available' : 'Pickup unavailable'}
+                  </Text>
+                  <View style={styles.discoveryStoreFooter}>
+                    <Text style={styles.discoveryStoreFooterText}>
+                      {store.productCount} products
+                    </Text>
+                    <Pressable
+                      onPress={() => setSelectedStore(store)}
+                      style={styles.discoveryActionButton}
+                    >
+                      <Text style={styles.discoveryActionText}>View Store</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </Pressable>
+            ))
+          ) : (
+            <Text style={styles.emptyText}>
+              No stores match your search or current filters. Try clearing filters.
+            </Text>
+          )}
+        </View>
+      ) : null}
+
+      {viewMode === 'map' && filteredStores.length === 0 ? (
+        <Text style={styles.emptyText}>
+          No stores match your search or current filters. Try clearing filters.
+        </Text>
+      ) : null}
+      {activeStoreFilter !== 'All Stores' ||
+      activeStoreCategory !== 'All' ||
+      storeSearchQuery ? (
+        <Pressable
+          onPress={() => {
+            setActiveStoreFilter('All Stores');
+            setActiveStoreCategory('All');
+            setStoreSearchQuery('');
+          }}
+          style={styles.clearFilterButton}
+        >
+          <Text style={styles.clearFilterText}>Clear filters</Text>
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
   const renderCart = () => (
@@ -1151,12 +1560,236 @@ const styles = StyleSheet.create({
   },
   headerProfileText: { color: COLORS.green, fontSize: 18, fontWeight: '700' },
   pageContent: { paddingBottom: 24, paddingHorizontal: 16 },
+  storeSearchBar: {
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    height: 52,
+    marginTop: 14,
+    paddingHorizontal: 13,
+  },
+  storeSearchIcon: {
+    color: COLORS.green,
+    fontSize: 23,
+    marginRight: 9,
+  },
+  storeSearchInput: {
+    color: COLORS.text,
+    flex: 1,
+    fontSize: 14,
+    height: '100%',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
+  storeSearchClear: {
+    alignItems: 'center',
+    backgroundColor: COLORS.paleGreen,
+    borderRadius: 16,
+    height: 30,
+    justifyContent: 'center',
+    marginLeft: 8,
+    width: 30,
+  },
+  storeSearchClearDisabled: {
+    opacity: 0,
+  },
+  storeSearchClearText: {
+    color: COLORS.green,
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  storeLoading: { marginTop: 8 },
+  storeDiscoveryHeader: { marginTop: 20 },
+  storeDiscoveryTitle: {
+    color: COLORS.text,
+    fontSize: 26,
+    fontWeight: '800',
+  },
+  storeDiscoverySubtitle: {
+    color: COLORS.muted,
+    fontSize: 12,
+    marginTop: 6,
+  },
+  storeDiscoveryMeta: {
+    color: COLORS.green,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 10,
+  },
+  filterRow: { gap: 10, marginTop: 16, paddingBottom: 4 },
+  filterChip: {
+    backgroundColor: '#F2F5F2',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  filterChipActive: {
+    backgroundColor: COLORS.green,
+  },
+  filterChipText: {
+    color: COLORS.text,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  filterChipTextActive: { color: COLORS.white },
+  viewToggleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 18,
+  },
+  viewToggleWrap: {
+    backgroundColor: COLORS.white,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  viewToggleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  viewToggleButtonActive: {
+    backgroundColor: COLORS.green,
+  },
+  viewToggleText: {
+    color: COLORS.text,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  viewToggleTextActive: { color: COLORS.white },
   mapContainer: {
     borderRadius: 15,
     height: 230,
     marginBottom: 12,
-    marginTop: 6,
+    marginTop: 18,
     overflow: 'hidden',
+  },
+  storeActionsRow: { marginTop: 6 },
+  storeList: { marginTop: 10 },
+  discoveryStoreCard: {
+    backgroundColor: COLORS.white,
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 14,
+    overflow: 'hidden',
+  },
+  discoveryStoreImage: {
+    backgroundColor: COLORS.paleGreen,
+    height: 160,
+    width: '100%',
+  },
+  discoveryStoreBody: { padding: 14 },
+  discoveryStoreHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  discoveryStoreBadge: {
+    alignItems: 'center',
+    backgroundColor: COLORS.paleGreen,
+    borderRadius: 12,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  discoveryStoreBadgeText: {
+    color: COLORS.green,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  discoveryStoreInfo: { flex: 1, marginLeft: 10 },
+  discoveryStoreName: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  discoveryStoreCategory: {
+    color: COLORS.muted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  discoveryStoreMetaRow: {
+    color: COLORS.green,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  discoveryStorePillRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  discoveryStorePill: {
+    backgroundColor: '#F3F1EC',
+    borderRadius: 999,
+    color: COLORS.text,
+    fontSize: 10,
+    fontWeight: '700',
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  discoveryStorePillActive: {
+    backgroundColor: '#DFF4E7',
+    color: COLORS.green,
+  },
+  discoveryStoreDetail: {
+    color: COLORS.muted,
+    fontSize: 11,
+    marginTop: 10,
+  },
+  discoveryStoreFooter: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 14,
+  },
+  discoveryStoreFooterText: {
+    color: COLORS.text,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  discoveryActionButton: {
+    backgroundColor: COLORS.green,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  discoveryActionText: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  clearFilterButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.paleGreen,
+    borderRadius: 10,
+    marginTop: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  clearFilterText: {
+    color: COLORS.green,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  mapUnavailable: {
+    alignItems: 'center',
+    backgroundColor: COLORS.paleGreen,
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  mapUnavailableText: {
+    color: COLORS.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   map: { flex: 1 },
   locationCard: {

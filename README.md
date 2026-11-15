@@ -16,11 +16,13 @@ Copy `.env.example` to `.env`. Set `EXPO_PUBLIC_API_URL` to the backend URL reac
 
 Set `GOOGLE_MAPS_ANDROID_API_KEY` in `.env` to enable the Android map. Optionally set `GOOGLE_MAPS_IOS_API_KEY` to use Google Maps on iOS; without it, iOS uses Apple Maps. Restrict keys to the relevant app identifiers and APIs.
 
+If the Android key is missing, the Stores screen shows a setup notice instead of opening Google Maps, and the store list remains available.
+
 Development builds allow local HTTP requests to reach the Node API. Use HTTPS for deployed APIs and set `NODE_ENV=production` when generating a production native build.
 
 ## Set up the backend
 
-Copy `backend/.env.example` to `backend/.env`. Set `DATABASE_URL` to your PostgreSQL connection string and `JWT_SECRET` to a private random secret of at least 32 characters. Set `DATABASE_SSL=true` if your database provider requires SSL.
+Copy `backend/.env.example` to `backend/.env`. Set `DATABASE_URL` to your PostgreSQL connection string and `JWT_SECRET` to a private random secret of at least 32 characters. Set `DATABASE_SSL=true` if your database provider requires SSL. The backend exposes a nearby-store discovery endpoint at `/api/stores`, with the 500-metre radius enforced on the server.
 
 Generate a secret in PowerShell with:
 
