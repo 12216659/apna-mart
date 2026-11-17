@@ -6,11 +6,62 @@ CREATE TABLE IF NOT EXISTS customers (
   email VARCHAR(320) UNIQUE,
   password_hash TEXT,
   google_id TEXT UNIQUE,
+  role VARCHAR(24) NOT NULL DEFAULT 'customer',
+  account_status VARCHAR(16) NOT NULL DEFAULT 'active'
+    CHECK (account_status IN ('active', 'blocked')),
+  auth_provider VARCHAR(16) NOT NULL DEFAULT 'password'
+    CHECK (auth_provider IN ('password', 'google', 'mixed')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT customers_phone_format
     CHECK (phone IS NULL OR phone ~ '^[6-9][0-9]{9}$')
 );
+
+ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS username VARCHAR(30),
+  ADD COLUMN IF NOT EXISTS phone VARCHAR(10),
+  ADD COLUMN IF NOT EXISTS email VARCHAR(320),
+  ADD COLUMN IF NOT EXISTS password_hash TEXT,
+  ADD COLUMN IF NOT EXISTS google_id TEXT,
+  ADD COLUMN IF NOT EXISTS role VARCHAR(24) NOT NULL DEFAULT 'customer',
+  ADD COLUMN IF NOT EXISTS account_status VARCHAR(16) NOT NULL DEFAULT 'active'
+    CHECK (account_status IN ('active', 'blocked')),
+  ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(16) NOT NULL DEFAULT 'password'
+    CHECK (auth_provider IN ('password', 'google', 'mixed')),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+UPDATE customers
+SET auth_provider = CASE
+  WHEN google_id IS NOT NULL AND password_hash IS NOT NULL THEN 'mixed'
+  WHEN google_id IS NOT NULL THEN 'google'
+  ELSE 'password'
+END
+WHERE auth_provider IS DISTINCT FROM CASE
+  WHEN google_id IS NOT NULL AND password_hash IS NOT NULL THEN 'mixed'
+  WHEN google_id IS NOT NULL THEN 'google'
+  ELSE 'password'
+END;
+
+ALTER TABLE customers
+  ALTER COLUMN username DROP NOT NULL,
+  ALTER COLUMN email DROP NOT NULL,
+  ALTER COLUMN password_hash DROP NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS customers_username_ci_unique_idx
+  ON customers (lower(username))
+  WHERE username IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS customers_email_ci_unique_idx
+  ON customers (lower(email))
+  WHERE email IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS customers_phone_unique_idx
+  ON customers (phone)
+  WHERE phone IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS customers_google_id_unique_idx
+  ON customers (google_id)
+  WHERE google_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS stores (
   id BIGSERIAL PRIMARY KEY,
@@ -27,9 +78,16 @@ CREATE TABLE IF NOT EXISTS stores (
   delivery_time_min INTEGER NOT NULL DEFAULT 20,
   delivery_time_max INTEGER NOT NULL DEFAULT 30,
   delivery_fee NUMERIC(6,2) NOT NULL DEFAULT 0,
+  pickup_fee NUMERIC(6,2) NOT NULL DEFAULT 0,
+  handling_fee NUMERIC(6,2) NOT NULL DEFAULT 0,
+  tax_rate NUMERIC(5,2) NOT NULL DEFAULT 0,
+  pickup_preparation_minutes INTEGER NOT NULL DEFAULT 20,
+  service_radius_meters INTEGER NOT NULL DEFAULT 500,
   pickup_available BOOLEAN NOT NULL DEFAULT true,
   delivery_available BOOLEAN NOT NULL DEFAULT true,
   is_open BOOLEAN NOT NULL DEFAULT true,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  is_approved BOOLEAN NOT NULL DEFAULT true,
   products_count INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -38,6 +96,15 @@ CREATE TABLE IF NOT EXISTS stores (
   CHECK (delivery_time_min >= 0),
   CHECK (delivery_time_max >= delivery_time_min)
 );
+
+ALTER TABLE stores
+  ADD COLUMN IF NOT EXISTS pickup_fee NUMERIC(6,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS handling_fee NUMERIC(6,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS pickup_preparation_minutes INTEGER NOT NULL DEFAULT 20,
+  ADD COLUMN IF NOT EXISTS service_radius_meters INTEGER NOT NULL DEFAULT 500,
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS is_approved BOOLEAN NOT NULL DEFAULT true;
 
 INSERT INTO stores (
   name,
@@ -155,3 +222,98 @@ VALUES
     134
   )
 ON CONFLICT DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS products (
+  id BIGSERIAL PRIMARY KEY,
+  store_id BIGINT NOT NULL REFERENCES stores(id) ON DELETE RESTRICT,
+  name VARCHAR(160) NOT NULL,
+  brand VARCHAR(100),
+  size VARCHAR(80),
+  price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
+  original_price NUMERIC(10,2) CHECK (original_price IS NULL OR original_price >= price),
+  stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+  image_url TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (store_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS customer_addresses (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  name VARCHAR(80) NOT NULL,
+  phone VARCHAR(10) NOT NULL CHECK (phone ~ '^[6-9][0-9]{9}$'),
+  house_number VARCHAR(120) NOT NULL,
+  street VARCHAR(160) NOT NULL,
+  city VARCHAR(100) NOT NULL,
+  state VARCHAR(100) NOT NULL,
+  pin_code VARCHAR(6) NOT NULL CHECK (pin_code ~ '^[0-9]{6}$'),
+  latitude DOUBLE PRECISION NOT NULL CHECK (latitude BETWEEN -90 AND 90),
+  longitude DOUBLE PRECISION NOT NULL CHECK (longitude BETWEEN -180 AND 180),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS customer_addresses_customer_id_idx
+  ON customer_addresses (customer_id, id);
+
+CREATE TABLE IF NOT EXISTS coupons (
+  id BIGSERIAL PRIMARY KEY,
+  code VARCHAR(40) NOT NULL UNIQUE,
+  description VARCHAR(200) NOT NULL,
+  discount_type VARCHAR(16) NOT NULL CHECK (discount_type IN ('fixed', 'percentage')),
+  discount_value NUMERIC(10,2) NOT NULL CHECK (discount_value > 0),
+  minimum_order NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (minimum_order >= 0),
+  maximum_discount NUMERIC(10,2) CHECK (maximum_discount IS NULL OR maximum_discount >= 0),
+  store_id BIGINT REFERENCES stores(id) ON DELETE CASCADE,
+  starts_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ,
+  usage_limit INTEGER CHECK (usage_limit IS NULL OR usage_limit >= 0),
+  used_count INTEGER NOT NULL DEFAULT 0 CHECK (used_count >= 0),
+  is_active BOOLEAN NOT NULL DEFAULT true
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
+  store_id BIGINT NOT NULL REFERENCES stores(id) ON DELETE RESTRICT,
+  address_id BIGINT REFERENCES customer_addresses(id) ON DELETE SET NULL,
+  idempotency_key VARCHAR(100) NOT NULL,
+  request_hash CHAR(64) NOT NULL,
+  fulfilment_method VARCHAR(16) NOT NULL CHECK (fulfilment_method IN ('delivery', 'pickup')),
+  payment_method VARCHAR(32) NOT NULL CHECK (payment_method = 'cash_on_delivery'),
+  payment_status VARCHAR(24) NOT NULL CHECK (payment_status IN ('pending', 'collected')),
+  order_status VARCHAR(24) NOT NULL DEFAULT 'placed',
+  item_total NUMERIC(10,2) NOT NULL CHECK (item_total >= 0),
+  product_discount NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (product_discount >= 0),
+  delivery_fee NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (delivery_fee >= 0),
+  handling_fee NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (handling_fee >= 0),
+  taxes NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (taxes >= 0),
+  coupon_code VARCHAR(40),
+  coupon_discount NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (coupon_discount >= 0),
+  grand_total NUMERIC(10,2) NOT NULL CHECK (grand_total >= 0),
+  address_snapshot JSONB,
+  store_snapshot JSONB NOT NULL,
+  estimated_time_min INTEGER,
+  estimated_time_max INTEGER,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (customer_id, idempotency_key)
+);
+
+CREATE INDEX IF NOT EXISTS orders_customer_id_created_at_idx
+  ON orders (customer_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS order_items (
+  id BIGSERIAL PRIMARY KEY,
+  order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
+  product_name VARCHAR(160) NOT NULL,
+  brand VARCHAR(100),
+  size VARCHAR(80),
+  image_url TEXT,
+  quantity INTEGER NOT NULL CHECK (quantity > 0),
+  unit_price NUMERIC(10,2) NOT NULL CHECK (unit_price >= 0),
+  product_discount NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (product_discount >= 0),
+  line_total NUMERIC(10,2) NOT NULL CHECK (line_total >= 0)
+);

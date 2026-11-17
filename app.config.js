@@ -20,9 +20,22 @@ module.exports = ({ config }) => ({
     ...config.android,
     package: 'com.apnamart',
   },
+  extra: {
+    ...(config.extra ?? {}),
+    googleMapsAndroidApiKeyConfigured: Boolean(
+      process.env.GOOGLE_MAPS_ANDROID_API_KEY,
+    ),
+    googleAuth: {
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
+      androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '',
+      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '',
+    },
+  },
   plugins: [
     ...(config.plugins ?? []),
     './plugins/with-development-cleartext.js',
+    'expo-secure-store',
+    'expo-web-browser',
     [
       'expo-location',
       {
