@@ -1,6 +1,9 @@
 const locationPermission =
   'Allow Apna Mart to use your location to show nearby shops and delivery areas.';
 
+const appEnvironment =
+  process.env.EXPO_PUBLIC_APP_ENV || process.env.APP_ENV || 'development';
+
 module.exports = ({ config }) => ({
   ...config,
   name: 'Apna Mart',
@@ -22,6 +25,14 @@ module.exports = ({ config }) => ({
   },
   extra: {
     ...(config.extra ?? {}),
+    appEnvironment,
+    apiUrl:
+      process.env.EXPO_PUBLIC_API_URL ||
+      {
+        development: process.env.EXPO_PUBLIC_API_URL_DEVELOPMENT || 'https://dev-api.apnamart.example.com',
+        preview: process.env.EXPO_PUBLIC_API_URL_PREVIEW || 'https://preview-api.apnamart.example.com',
+        production: process.env.EXPO_PUBLIC_API_URL_PRODUCTION || 'https://api.apnamart.example.com',
+      }[appEnvironment],
     googleMapsAndroidApiKeyConfigured: Boolean(
       process.env.GOOGLE_MAPS_ANDROID_API_KEY,
     ),

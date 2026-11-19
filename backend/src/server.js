@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
+import morgan from 'morgan';
 import { OAuth2Client } from 'google-auth-library';
 import { pool } from './config/database.js';
 import createAuthRouter from './routes/authRoutes.js';
@@ -14,6 +15,10 @@ const app = express();
 const port = Number(process.env.PORT) || 5000;
 const databaseUrl = process.env.DATABASE_URL;
 const jwtSecret = process.env.JWT_SECRET;
+const allowedOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || 'https://app.apnamart.example.com')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
 const googleClientIds = [
   process.env.GOOGLE_CLIENT_ID,
   ...(process.env.GOOGLE_CLIENT_IDS || '').split(','),
@@ -29,8 +34,36 @@ const authRoutes = createAuthRouter({
   jwtSecret,
 });
 
-app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
+app.set('trust proxy', 1);
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(helmet({ crossOriginResourcePolicy: false }));
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') {
+    return next();
+  }
+
+  const forwardedProto = req.get('x-forwarded-proto');
+  const isHttps = req.secure || forwardedProto === 'https';
+
+  if (!isHttps) {
+    return res.redirect(301, `https://${req.hostname}${req.originalUrl}`);
+  }
+
+  return next();
+});
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('CORS policy rejected this origin.'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json({ limit: '10kb' }));
 app.use('/api', authRoutes);
 app.use('/api', checkoutRoutes);

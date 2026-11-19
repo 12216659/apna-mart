@@ -21,13 +21,31 @@ Apna Mart is a JavaScript app built with React Native and Expo. Its Node.js/Expr
 
 ## Configure the app
 
-Copy `.env.example` to `.env`. Set `EXPO_PUBLIC_API_URL` to the backend URL reachable from the device. For a physical phone, use your computer's LAN IP and make sure both devices share a network. The app defaults to the Android emulator and iOS simulator addresses.
+Copy `.env.example` to `.env`. Use the public HTTPS base URL for the active build environment instead of a local workstation address or private LAN IP. The app is configured for three environments with distinct public API URLs:
+
+- `EXPO_PUBLIC_API_URL_DEVELOPMENT`
+- `EXPO_PUBLIC_API_URL_PREVIEW`
+- `EXPO_PUBLIC_API_URL_PRODUCTION`
+
+Set `EXPO_PUBLIC_APP_ENV` to `development`, `preview`, or `production` before building. `EXPO_PUBLIC_API_URL` remains the single public API base URL consumed by the client at runtime and should never include database credentials, JWT secrets, Google client secrets, or gateway secrets.
 
 Set `GOOGLE_MAPS_ANDROID_API_KEY` in `.env` to enable the Android map. Optionally set `GOOGLE_MAPS_IOS_API_KEY` to use Google Maps on iOS; without it, iOS uses Apple Maps. Restrict keys to the relevant app identifiers and APIs.
 
 If the Android key is missing, the Stores screen shows a setup notice instead of opening Google Maps, and the store list remains available.
 
-Development builds allow local HTTP requests to reach the Node API. Use HTTPS for deployed APIs and set `NODE_ENV=production` when generating a production native build.
+Production builds must use HTTPS only. Do not publish an app that points to `localhost`, `127.0.0.1`, or a private LAN IP such as `192.168.x.x` or `10.x.x.x`.
+
+## Production deployment requirements
+
+The backend is intentionally separate from the mobile client. The app reads a public base URL from environment variables, while the backend keeps secrets in the hosting provider's secret environment store.
+
+Recommended deployment layout:
+
+- Host the Node.js + Express API on Render, Railway, Fly.io, Azure App Service, or another managed cloud host.
+- Provision PostgreSQL with PostGIS on a managed provider such as Supabase, Neon, Railway, Azure Database for PostgreSQL, or Amazon RDS.
+- Configure HTTPS-only public endpoints, domain/DNS entries, and environment-specific API URLs for development, preview, and production.
+- Keep `DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_IDS`, and payment gateway keys in the hosting provider's secret environment variables.
+- Set production CORS origins explicitly to the app domain and preview domain(s); do not use a wildcard origin in production.
 
 ## Set up the backend
 
@@ -39,7 +57,7 @@ Generate a secret in PowerShell with:
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-Install dependencies, create the customer table, and start the API:
+Install dependencies, create the schema, and start the API:
 
 ```powershell
 cd backend
@@ -48,7 +66,27 @@ npm run db:migrate
 npm run dev
 ```
 
-Leave the backend running while using the app. Existing customer data in MongoDB is not copied automatically; export and migrate it separately if you need to keep it.
+For production or preview deployments, run the backend with `NODE_ENV=production`, HTTPS-enabled front-end traffic, and the provider's managed Postgres URL. The application server also loads the configured CORS origins, connection pool settings, and health checks from environment variables. The database schema includes `CREATE EXTENSION IF NOT EXISTS postgis;` so the managed instance is ready for geospatial queries.
+
+## Deployment, DNS, migration, and rollback
+
+Before publishing:
+
+1. Configure the DNS records for the API domain and preview domain, and point them to the cloud host.
+2. Create the production Postgres database with automatic backups enabled and connection pooling configured.
+3. Deploy the backend with `NODE_ENV=production`, the production `DATABASE_URL`, and the secret environment variables added in the host dashboard.
+4. Confirm the health endpoint at `/api/health` returns success and that the database is reachable.
+5. Run the database migration (`npm run db:migrate`) against the managed Postgres instance.
+6. Verify authentication, ordering, and security flows against the live API using Android and iOS release builds before publishing.
+
+Rollback procedure:
+
+1. Keep the previous API deployment artifact and database snapshot available.
+2. In the hosting provider, redeploy the last known-good build and restore the prior environment variables if needed.
+3. Re-run the most recent migration set against the backup database, or restore the snapshot if the migration introduced a critical issue.
+4. Update the app's `EXPO_PUBLIC_API_URL` to the restored production endpoint and publish the release only after re-testing the affected flows.
+
+The project is ready for deployment configuration changes, but actual production readiness still requires successful end-to-end testing of the deployed API, database, authentication, ordering, and security flows.
 
 ## Run the mobile app
 
